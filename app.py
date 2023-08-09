@@ -1,18 +1,17 @@
 import os
 
-import dotenv
 import streamlit as st
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
-from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings
+# from langchain.text_splitter import CharacterTextSplitter
+from langchain.embeddings import OpenAIEmbeddings #, HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
-from langchain.llms import HuggingFaceHub
-import InstructorEmbedding
+# from langchain.llms import HuggingFaceHub
+# import InstructorEmbedding
 # load environment variables
 load_dotenv()
 # get pdf text method
@@ -87,10 +86,10 @@ def get_conversation_chain(vectorstore):
     """
     model_kwargs = {"temperature": 0.5, "max_length": 4096}
     # Initialize a language model for chat-based interaction (LLM)
-    # llm = ChatOpenAI(tempatature=0.5)
+    llm = ChatOpenAI()
 
     # Alternatively, you can use a different language model, like Hugging Face's model
-    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":4096}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
+    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":4096}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
 
     # Initialize a memory buffer to store conversation history
     memory = ConversationBufferMemory(
