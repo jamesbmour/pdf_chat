@@ -78,12 +78,41 @@ def get_vectorstore(text_chunks):
 
 
 # get conversation chain method
-def get_conversation_chain(vector_store):
-    pass
+def get_conversation_chain(vectorstore):
+    """
+    Get conversation chain from vector store
+
+    :param vectorstore: vector store
+    :return: conversation chain
+    """
+    # Initialize a language model for chat-based interaction (LLM)
+    llm = ChatOpenAI()
+
+    # Alternatively, you can use a different language model, like Hugging Face's model
+    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
+
+    # Initialize a memory buffer to store conversation history
+    memory = ConversationBufferMemory(
+        memory_key='chat_history', return_messages=True)
+
+    # Create a conversation chain for conversational retrieval
+    conversation_chain = ConversationalRetrievalChain.from_llm(
+        llm=llm,  # Language model for generating responses
+        retriever=vectorstore.as_retriever(),  # Text vector retriever for context matching
+        memory=memory  # Memory buffer to store conversation history
+    )
+
+    return conversation_chain
+
 
 # get handler user input method
 def get_handler_userinput(conversation_chain):
-    pass
+    """
+    Get handler user input from conversation chain
+    :param conversation_chain:  conversation chain
+    :return:  handler user input
+    """
+    print("Creating handler user input")
 
 
 
@@ -114,6 +143,12 @@ def main():
                 vector_store = get_vectorstore(text_chunks)
                 print("Vector store created")
                 # print(f'Number of vectors: {len(vector_store)}')
+                # get conversation chain
+                print("Creating conversation chain")
+                conversation_chain = get_conversation_chain(vector_store)
+                print("Conversation chain created")
+ \
+
 
 
 
