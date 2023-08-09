@@ -70,9 +70,9 @@ def get_vectorstore(text_chunks):
     # get embeddings
     print(openai_api_key)
 
-    # embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
     return vector_store
 
@@ -85,11 +85,12 @@ def get_conversation_chain(vectorstore):
     :param vectorstore: vector store
     :return: conversation chain
     """
+    model_kwargs = {"temperature": 0.5, "max_length": 4096}
     # Initialize a language model for chat-based interaction (LLM)
-    llm = ChatOpenAI()
+    # llm = ChatOpenAI(tempatature=0.5)
 
     # Alternatively, you can use a different language model, like Hugging Face's model
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":512}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":4096}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
 
     # Initialize a memory buffer to store conversation history
     memory = ConversationBufferMemory(
@@ -106,13 +107,22 @@ def get_conversation_chain(vectorstore):
 
 
 # get handler user input method
-def get_handler_userinput(conversation_chain):
+def handle_userinput(user_question):
     """
     Get handler user input from conversation chain
-    :param conversation_chain:  conversation chain
+    :param user_question:  conversation chain
     :return:  handler user input
     """
-    print("Creating handler user input")
+    response = st.session_state.conversation({'question': user_question})
+    st.session_state.chat_history = response['chat_history']
+
+    for i, message in enumerate(st.session_state.chat_history):
+        if i % 2 == 0:
+            st.write(user_template.replace(
+                "{{MSG}}", message.content), unsafe_allow_html=True)
+        else:
+            st.write(bot_template.replace(
+                "{{MSG}}", message.content), unsafe_allow_html=True)
 
 
 
@@ -120,10 +130,23 @@ def get_handler_userinput(conversation_chain):
 
 
 def main():
-    print("Hello World!")
-    st.header("Chat with mMultiple PDFs")
-    st.text_input("Ask a question")
+    load_dotenv()
+    st.set_page_config(page_title="Chat with multiple PDFs",
+                       page_icon=":books:")
+    st.write(css, unsafe_allow_html=True)
 
+    if "conversation" not in st.session_state:
+        st.session_state.conversation = None
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = None
+
+    st.header("Chat with multiple PDFs :books:")
+    user_question = st.text_input("Ask a question about your documents:")
+    if user_question:
+        handle_userinput(user_question)
+
+
+    # init sidebar
     with st.sidebar:
         st.subheader("Your PDFs")
         pdf_docs = st.file_uploader("Upload PDFs and click process", type="pdf", accept_multiple_files=True)
@@ -145,10 +168,11 @@ def main():
                 # print(f'Number of vectors: {len(vector_store)}')
                 # get conversation chain
                 print("Creating conversation chain")
-                conversation_chain = get_conversation_chain(vector_store)
+                # links variable to session state so it can be used in other functions and not recreated
+                st.session_state.conversation = get_conversation_chain(vector_store)
                 print("Conversation chain created")
- \
 
+    # get handler user input
 
 
 
