@@ -86,7 +86,7 @@ def get_conversation_chain(vectorstore):
     """
     model_kwargs = {"temperature": 0.5, "max_length": 4096}
     # Initialize a language model for chat-based interaction (LLM)
-    llm = ChatOpenAI(tempatature=0.5)
+    llm = ChatOpenAI()
 
     # Alternatively, you can use a different language model, like Hugging Face's model
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":4096}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
