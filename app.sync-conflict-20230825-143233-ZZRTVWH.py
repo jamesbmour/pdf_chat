@@ -12,13 +12,6 @@ from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub
 import InstructorEmbedding
-from langchain.agents import create_csv_agent
-
-
-from langchain.memory import RedisChatMessageHistory
-from langchain.vectorstores.redis import Redis
-from langchain.vectorstores import Qdrant
-
 
 # load environment variables
 load_dotenv()
@@ -31,9 +24,12 @@ def get_pdf_text(pdf_file):
     :param pdf_file: pdf file
     :return: raw text
     """
-    # for pdf in pdf_file:
-    pdf_reader = PdfReader(pdf_file)
-    return "".join(page.extract_text() for page in pdf_reader.pages)
+    text = ""
+    for pdf in pdf_file:
+        pdf_reader = PdfReader(pdf)
+        for page in pdf_reader.pages:
+            text += page.extract_text()
+    return text
 
 
 # get text chunks method
@@ -79,13 +75,23 @@ def get_vectorstore(text_chunks):
 
     embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="Open-Orca/OpenOrca-Platypus2-13B")
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    # vector_store = Qdrant.afrom_documents(text_chunks, embeddings, "http://localhost:6333")
-    print(type(vector_store))
+    return FAISS.from_texts(texts=text_chunks, embedding=embeddings)
 
-    return vector_store
+def save_vectorstore(vector_store):
+    """
+    Save vector store to file
+    :param vector_store: vector store
+    :return:  vector store
+    """
+    vector_store.save("vector_store")
+
+# def load_vectorstore():
+#     """
+#     Load vector store from file
+#     :return:  vector store
+#     """
+#     return FAISS.load("vector_store")
 
 
 # get conversation chain method
@@ -96,12 +102,12 @@ def get_conversation_chain(vectorstore):
     :param vectorstore: vector store
     :return: conversation chain
     """
-    model_prams = {"temperature": 0.2, "max_length": 4096}
+    model_kwargs = {"temperature": 0.5, "max_length": 4096}
     # Initialize a language model for chat-based interaction (LLM)
     llm = ChatOpenAI()
 
     # Alternatively, you can use a different language model, like Hugging Face's model
-    # llm = HuggingFaceHub(repo_id="decapoda-research/llama-7b-hf", model_kwargs=model_prams)
+    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature":0.5, "max_length":4096}, api_key=os.getenv("HUGGINGFACE_API_TOKEN"))
 
     # Initialize a memory buffer to store conversation history
     memory = ConversationBufferMemory(
@@ -143,61 +149,35 @@ def main():
         st.session_state.conversation = None
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = None
+    # if "pdf_docs" not in st.session_state:
+    #     st.session_state.pdf_docs = None
+
 
     st.header("Chat with multiple PDFs :books:")
     if user_question := st.text_input("Ask a question about your documents:"):
         handle_userinput(user_question)
 
-    # TODO: add a form to adjust model parameters
-    st.subheader("Model Parameters")
+    # TODO: add clear chat button
+
+    # TODO: and new chat button
+
+    # TODO: and save chat button
+
+    # TODO: and sidebar of old chats
 
     # init sidebar
     with st.sidebar:
-        # TODO: add new chat button that clears chat history and resets conversation chain
-
-        # TODO: add save chat button to sidebar saved chat history
-
         st.subheader("Your PDFs")
         pdf_docs = st.file_uploader("Upload PDFs and click process", type="pdf", accept_multiple_files=True)
-
-
         if st.button("Process"):
             with st.spinner("Processing PDFs"):
                 process_files(pdf_docs, st)
 
-        # TODO: add select model dropdown in sidebar to select model to use
 
 # TODO Rename this here and in `main`
-def process_files(file_list, st):  # sourcery skip: raise-specific-error
-    """
-    Process files
-    :param file_list: list of files
-    :param st: streamlit object
-    :return:
-    """
-    # get file extension
-    # loop through files and process them based on file extension
-    for file in file_list:
-        # get file extension
-        file_extension = os.path.splitext(file.name)[1]
-        # get file name
-        file_name = os.path.splitext(file.name)[0]
-        # if file extension is pdf
-        if file_extension == ".pdf":
-            # get pdf text
-            raw_text = get_pdf_text(file)
-        elif file_extension == ".txt":
-            with open(file, 'r') as txt_file:
-                raw_text = txt_file.read()
-
-        elif file_extension == ".csv":
-            with open(file, 'r') as csv_file:
-                raw_text = csv_file.read()
-
-        else:
-            raise Exception("File type not supported")
-    # get raw text
-
+def process_files(pdf_docs, st):
+    # get pdf text
+    raw_text = get_pdf_text(pdf_docs)
     # st.write(raw_text)
     print(raw_text)
     # get text chunks
@@ -216,36 +196,6 @@ def process_files(file_list, st):  # sourcery skip: raise-specific-error
     print("Conversation chain created")
 
     # get handler user input
-
-def get_file_text(file_path_list):  # sourcery skip: raise-specific-error
-    """
-    Get raw text from pdf file or txt file
-    :param file_path_list: list of file paths
-    :return: raw text
-    """
-    raw_text = ""
-    for file_path in file_path_list:
-        # get file extension
-        file_extension = os.path.splitext(file_path)[1]
-        # get file name
-        file_name = os.path.splitext(file_path)[0]
-        # if file extension is pdf
-        if file_extension == ".pdf":
-            # get pdf text
-            raw_text += get_pdf_text(file_path)
-        elif file_extension == ".txt":
-            with open(file_path, 'r') as txt_file:
-                raw_text += txt_file.read()
-
-        elif file_extension == ".csv":
-            with open(file_path, 'r') as csv_file:
-                raw_text += csv_file.read()
-
-        else:
-            raise Exception("File type not supported")
-
-    return raw_text
-
 
 
 if __name__ == '__main__':
