@@ -1,28 +1,30 @@
 import os
 
 import streamlit as st
+# import torch
+from dotenv import load_dotenv
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-from langchain.text_splitter import CharacterTextSplitter
+# from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings  # , HuggingFaceInstructEmbeddings
-from langchain.vectorstores import FAISS
+from langchain.vectorstores import FAISS, Qdrant, Chroma
 from langchain.chat_models import ChatOpenAI
 from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
-from langchain.llms import HuggingFaceHub
-import InstructorEmbedding
-from langchain.agents import create_csv_agent
-
-
-from langchain.memory import RedisChatMessageHistory
-from langchain.vectorstores.redis import Redis
-from langchain.vectorstores import Qdrant
-
+from langchain.llms import HuggingFaceHub, HuggingFacePipeline
+# from transformers import pipeline
+# from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+# from constants import CHROMA_SETTINGS
+# import InstructorEmbedding
+# from langchain.agents import create_csv_agent
+#
+# from langchain.memory import RedisChatMessageHistory
+# from langchain.vectorstores.redis import Redis
+# from langchain.vectorstores import Qdrant
 
 # load environment variables
 load_dotenv()
-
 
 # get pdf text method
 def get_pdf_text(pdf_file):
@@ -71,18 +73,15 @@ def get_vectorstore(text_chunks):
     :param text_chunks: list of text chunks
     :return:  vector store
     """
-
-    # get openai api key
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    # get embeddings
-    print(openai_api_key)
-
-    embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    # TODO: make vector store a persistent object that can be reused
+    # embeddings = OpenAIEmbeddings(openai_api_key=openai_api_key)
+    embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
     # embeddings = HuggingFaceInstructEmbeddings(model_name="Open-Orca/OpenOrca-Platypus2-13B")
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
+    # vector_store = Chroma(persist_directory="db", embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
     vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    # vector_store = Qdrant.afrom_documents(text_chunks, embeddings, "http://localhost:6333")
+
+    # vector_store = Qdrant.from_documents(text_chunks, embeddings, "http://localhost:6333")
     print(type(vector_store))
 
     return vector_store
@@ -96,13 +95,16 @@ def get_conversation_chain(vectorstore):
     :param vectorstore: vector store
     :return: conversation chain
     """
-    model_prams = {"temperature": 0.2, "max_length": 4096}
+    model_prams = {"temperature": 0.23, "max_length": 4096}
     # Initialize a language model for chat-based interaction (LLM)
     llm = ChatOpenAI()
 
     # Alternatively, you can use a different language model, like Hugging Face's model
     # llm = HuggingFaceHub(repo_id="decapoda-research/llama-7b-hf", model_kwargs=model_prams)
-
+    print("Creating conversation chain...")
+    # llm = HuggingFaceHub(repo_id="Open-Orca/OpenOrca-Platypus2-13B", model_kwargs=model_prams)
+    llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature": 0.5, "max_length": 4096})
+    print("Conversation chain created")
     # Initialize a memory buffer to store conversation history
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
@@ -121,16 +123,20 @@ def handle_userinput(user_question):
     :param user_question:  conversation chain
     :return:  handler user input
     """
-    response = st.session_state.conversation({'question': user_question})
-    st.session_state.chat_history = response['chat_history']
+    if st.session_state.conversation is not None:
 
-    for i, message in enumerate(st.session_state.chat_history):
-        if i % 2 == 0:
-            st.write(user_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
-        else:
-            st.write(bot_template.replace(
-                "{{MSG}}", message.content), unsafe_allow_html=True)
+        response = st.session_state.conversation({'question': user_question})
+        st.session_state.chat_history = response['chat_history']
+
+        for i, message in enumerate(st.session_state.chat_history):
+            if i % 2 == 0:
+                st.write(user_template.replace(
+                    "{{MSG}}", message.content), unsafe_allow_html=True)
+            else:
+                st.write(bot_template.replace(
+                    "{{MSG}}", message.content), unsafe_allow_html=True)
+    else:
+        st.write("Please upload PDFs and click process")
 
 
 def main():
@@ -160,12 +166,12 @@ def main():
         st.subheader("Your PDFs")
         pdf_docs = st.file_uploader("Upload PDFs and click process", type="pdf", accept_multiple_files=True)
 
-
         if st.button("Process"):
             with st.spinner("Processing PDFs"):
                 process_files(pdf_docs, st)
 
         # TODO: add select model dropdown in sidebar to select model to use
+
 
 # TODO Rename this here and in `main`
 def process_files(file_list, st):  # sourcery skip: raise-specific-error
@@ -217,6 +223,7 @@ def process_files(file_list, st):  # sourcery skip: raise-specific-error
 
     # get handler user input
 
+
 def get_file_text(file_path_list):  # sourcery skip: raise-specific-error
     """
     Get raw text from pdf file or txt file
@@ -245,7 +252,6 @@ def get_file_text(file_path_list):  # sourcery skip: raise-specific-error
             raise Exception("File type not supported")
 
     return raw_text
-
 
 
 if __name__ == '__main__':
