@@ -13,15 +13,6 @@ from langchain.memory import ConversationBufferMemory
 from langchain.chains import ConversationalRetrievalChain
 from htmlTemplates import css, bot_template, user_template
 from langchain.llms import HuggingFaceHub, HuggingFacePipeline
-# from transformers import pipeline
-# from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
-# from constants import CHROMA_SETTINGS
-# import InstructorEmbedding
-# from langchain.agents import create_csv_agent
-#
-# from langchain.memory import RedisChatMessageHistory
-# from langchain.vectorstores.redis import Redis
-# from langchain.vectorstores import Qdrant
 
 # load environment variables
 load_dotenv()
