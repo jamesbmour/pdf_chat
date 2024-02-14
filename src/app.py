@@ -16,10 +16,8 @@ from langchain.llms import HuggingFaceHub, HuggingFacePipeline
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 print(openai_api_key)
-# get pdf text method
-def get_pdf_text(pdf_file):
 
-    # for pdf in pdf_file:
+def get_pdf_text(pdf_file):
     pdf_reader = PdfReader(pdf_file)
     return "".join(page.extract_text() for page in pdf_reader.pages)
 
@@ -30,23 +28,16 @@ def get_text_chunks(text, chunk_size=1000, chunk_overlap=200):
     position = 0
     # Iterate over the text until the entire text has been processed
     while position < len(text):
-        # Calculate the starting index for the current chunk,
-        # ensuring it doesn't go below 0
         start_index = max(0, position - chunk_overlap)
-        # Calculate the ending index for the current chunk
         end_index = position + chunk_size
-        # Extract the current chunk of text using slicing
         chunk = text[start_index:end_index]
-        # Add the extracted chunk to the list of text chunks
         text_chunks.append(chunk)
-        # Update the position for the next iteration, accounting for overlap
         position = end_index - chunk_overlap
     return text_chunks
 
 
 # get vector store method
 def get_vectorstore(text_chunks):
-
     # TODO: make vector store a persistent object that can be reused
     # embeddings = OpenAIEmbeddings(openai_api_key = openai_api_key)
     # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
@@ -64,12 +55,13 @@ def get_vectorstore(text_chunks):
 # get conversation chain method
 def get_conversation_chain(vectorstore):
     model_prams = {"temperature": 0.23, "max_length": 4096}
-    # Initialize a language model for chat-based interaction (LLM)
+    # TODO: Convert this to OpenRouter
     llm = ChatOpenAI()
     # llm = ChatOpenAI(openai_api_key=openai_api_key, model_kwargs=model_prams)
 
     # Alternatively, you can use a different language model, like Hugging Face's model
     # llm = HuggingFaceHub(repo_id="decapoda-research/llama-7b-hf", model_kwargs=model_prams)
+    # llm = HuggingFaceHub(repo_id="microsoft/phi-2", model_kwargs=model_prams)
     print("Creating conversation chain...")
     # llm = HuggingFaceHub(repo_id="Open-Orca/OpenOrca-Platypus2-13B", model_kwargs=model_prams)
     # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature": 0.5, "max_length": 4096})
@@ -79,7 +71,7 @@ def get_conversation_chain(vectorstore):
         memory_key='chat_history', return_messages=True)
 
     return ConversationalRetrievalChain.from_llm(
-        llm=llm,  # Language model for generating responses
+        llm=llm,
         retriever=vectorstore.as_retriever(),  # Text vector retriever for context matching
         memory=memory,  # Memory buffer to store conversation history
     )
@@ -118,13 +110,11 @@ def main():
     if user_question := st.text_input("Ask a question about your documents:"):
         handle_userinput(user_question)
 
-    # TODO: add a form to adjust model parameters
     st.subheader("Model Parameters")
 
     # init sidebar
     with st.sidebar:
         # TODO: add new chat button that clears chat history and resets conversation chain
-
         # TODO: add save chat button to sidebar saved chat history
         st.subheader("Your PDFs")
         pdf_docs = st.file_uploader("Upload PDFs and click process", type="pdf", accept_multiple_files=True)
@@ -139,15 +129,10 @@ def main():
 # TODO Rename this here and in `main`
 def process_files(file_list, st):  # sourcery skip: raise-specific-error
 
-    # loop through files and process them based on file extension
     for file in file_list:
-        # get file extension
         file_extension = os.path.splitext(file.name)[1]
-        # get file name
         file_name = os.path.splitext(file.name)[0]
-        # if file extension is pdf
         if file_extension == ".pdf":
-            # get pdf text
             raw_text = get_pdf_text(file)
         elif file_extension == ".txt":
             with open(file, 'r') as txt_file:
@@ -159,36 +144,24 @@ def process_files(file_list, st):  # sourcery skip: raise-specific-error
 
         else:
             raise Exception("File type not supported")
-    # get raw text
 
-    # st.write(raw_text)
     print(raw_text)
-    # get text chunks
     text_chunks = get_text_chunks(raw_text)
-    # st.write(text_chunks)
     print(f'Number of text chunks: {len(text_chunks)}')
-    # get vector store
     print("Creating vector store")
     vector_store = get_vectorstore(text_chunks)
     print("Vector store created")
-    # print(f'Number of vectors: {len(vector_store)}')
-    # get conversation chain
     print("Creating conversation chain")
-    # links variable to session state so it can be used in other functions and not recreated
     st.session_state.conversation = get_conversation_chain(vector_store)
     print("Conversation chain created")
 
 
-def get_file_text(file_path_list):  # sourcery skip: raise-specific-error
+def get_file_text(file_path_list):
     raw_text = ""
     for file_path in file_path_list:
-        # get file extension
         file_extension = os.path.splitext(file_path)[1]
-        # get file name
         file_name = os.path.splitext(file_path)[0]
-        # if file extension is pdf
         if file_extension == ".pdf":
-            # get pdf text
             raw_text += get_pdf_text(file_path)
         elif file_extension == ".txt":
             with open(file_path, 'r') as txt_file:
