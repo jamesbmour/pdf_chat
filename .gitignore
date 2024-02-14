@@ -112,7 +112,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+pdf_chat/src/.env
 .venv
 env/
 venv/
@@ -156,5 +156,7 @@ cython_debug/
 
 
 .idea/
+
+pdf_chat/src/.env
 
 .env
