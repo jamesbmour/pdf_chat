@@ -1,9 +1,7 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-from dotenv import load_dotenv
 from PyPDF2 import PdfReader
-# from langchain.text_splitter import CharacterTextSplitter
 from langchain.embeddings import OpenAIEmbeddings, HuggingFaceInstructEmbeddings  # , HuggingFaceInstructEmbeddings
 from langchain.vectorstores import FAISS, Qdrant, Chroma
 from langchain.chat_models import ChatOpenAI
@@ -15,7 +13,8 @@ from langchain.llms import HuggingFaceHub, HuggingFacePipeline
 # load environment variables
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-print(openai_api_key)
+# print(openai_api_key)
+
 
 def get_pdf_text(pdf_file):
     pdf_reader = PdfReader(pdf_file)
@@ -40,13 +39,9 @@ def get_text_chunks(text, chunk_size=1000, chunk_overlap=200):
 def get_vectorstore(text_chunks):
     # TODO: make vector store a persistent object that can be reused
     # embeddings = OpenAIEmbeddings(openai_api_key = openai_api_key)
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    # embeddings = HuggingFaceInstructEmbeddings(model_name="Open-Orca/OpenOrca-Platypus2-13B")
     embeddings = HuggingFaceInstructEmbeddings(model_name="hkunlp/instructor-xl")
-    # vector_store = Chroma(persist_directory="db", embedding_function=embeddings, client_settings=CHROMA_SETTINGS)
     vector_store = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
 
-    # vector_store = Qdrant.from_documents(text_chunks, embeddings, "http://localhost:6333")
     print(type(vector_store))
 
     return vector_store
@@ -57,16 +52,11 @@ def get_conversation_chain(vectorstore):
     model_prams = {"temperature": 0.23, "max_length": 4096}
     # TODO: Convert this to OpenRouter
     llm = ChatOpenAI()
-    # llm = ChatOpenAI(openai_api_key=openai_api_key, model_kwargs=model_prams)
 
     # Alternatively, you can use a different language model, like Hugging Face's model
-    # llm = HuggingFaceHub(repo_id="decapoda-research/llama-7b-hf", model_kwargs=model_prams)
     # llm = HuggingFaceHub(repo_id="microsoft/phi-2", model_kwargs=model_prams)
     print("Creating conversation chain...")
-    # llm = HuggingFaceHub(repo_id="Open-Orca/OpenOrca-Platypus2-13B", model_kwargs=model_prams)
-    # llm = HuggingFaceHub(repo_id="google/flan-t5-xxl", model_kwargs={"temperature": 0.5, "max_length": 4096})
     print("Conversation chain created")
-    # Initialize a memory buffer to store conversation history
     memory = ConversationBufferMemory(
         memory_key='chat_history', return_messages=True)
 
